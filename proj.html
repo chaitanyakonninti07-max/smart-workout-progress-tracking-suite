@@ -1,0 +1,482 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Workout Tracker Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{
+font-family:'Segoe UI',sans-serif;
+margin:0;
+background:#f4f6f9;
+transition:0.3s;
+}
+
+header{
+background:linear-gradient(90deg,#2c3e50,#34495e);
+color:white;
+padding:15px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.container{
+width:92%;
+margin:auto;
+margin-top:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+margin-bottom:20px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,0.08);
+}
+
+input,select,button{
+padding:10px;
+margin:5px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+background:#27ae60;
+color:white;
+cursor:pointer;
+border:none;
+}
+
+button:hover{
+background:#1e8449;
+}
+
+.secondary{
+background:#2980b9;
+}
+
+.danger{
+background:#e74c3c;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:10px;
+}
+
+th,td{
+padding:10px;
+border-bottom:1px solid #ddd;
+text-align:center;
+}
+
+.login-box{
+width:350px;
+margin:120px auto;
+background:white;
+padding:30px;
+text-align:center;
+box-shadow:0 0 15px rgba(0,0,0,0.2);
+border-radius:10px;
+}
+
+.dark{
+background:#121212;
+color:white;
+}
+
+.dark .card{
+background:#1e1e1e;
+color:white;
+}
+</style>
+</head>
+
+<body>
+
+<div id="authPage">
+<div class="login-box">
+
+<h2 id="formTitle">🏋 Smart Workout Tracker</h2>
+
+<input type="text" id="authUsername" placeholder="Username"><br>
+<input type="password" id="authPassword" placeholder="Password"><br>
+
+<button onclick="handleAuth()">Login</button>
+
+<p id="authError" style="color:red;"></p>
+
+<p id="toggleText">
+Don't have an account?
+<button class="secondary" onclick="toggleForm()">Register</button>
+</p>
+
+</div>
+</div>
+
+<div id="dashboard" style="display:none;">
+
+<header>
+<h2>💪 Welcome, <span id="currentUser"></span></h2>
+
+<div>
+<button onclick="toggleDark()">🌙</button>
+<button onclick="logout()">Logout</button>
+</div>
+
+</header>
+
+<div class="container">
+
+<div class="card">
+<h3>🔥 Daily Motivation</h3>
+<p id="quote"></p>
+</div>
+
+<div class="card">
+<h3>🎯 Daily Workout Goal</h3>
+<input type="number" id="goal" placeholder="Enter daily reps goal">
+<button onclick="saveGoal()">Save Goal</button>
+<p id="goalStatus"></p>
+</div>
+
+<div class="card">
+<h3>⚖ BMI Calculator</h3>
+
+<input type="number" id="height" placeholder="Height (cm)">
+<input type="number" id="bmiweight" placeholder="Weight (kg)">
+<button onclick="calcBMI()">Calculate</button>
+
+<p id="bmiResult"></p>
+
+</div>
+
+<div class="card">
+
+<h3>Add Workout</h3>
+
+<input type="date" id="date">
+
+<select id="exercise">
+
+<optgroup label="Upper Body">
+<option>Push Ups</option>
+<option>Pull Ups</option>
+<option>Bench Press</option>
+<option>Bicep Curls</option>
+<option>Tricep Dips</option>
+<option>Shoulder Press</option>
+<option>Chest Fly</option>
+</optgroup>
+
+<optgroup label="Lower Body">
+<option>Squats</option>
+<option>Lunges</option>
+<option>Leg Press</option>
+<option>Deadlift</option>
+<option>Calf Raises</option>
+</optgroup>
+
+<optgroup label="Cardio">
+<option>Running</option>
+<option>Cycling</option>
+<option>Jump Rope</option>
+<option>Burpees</option>
+<option>Mountain Climbers</option>
+</optgroup>
+
+<optgroup label="Core">
+<option>Plank</option>
+<option>Sit Ups</option>
+<option>Russian Twist</option>
+<option>Leg Raises</option>
+<option>Bicycle Crunch</option>
+</optgroup>
+
+</select>
+
+<input type="number" id="reps" placeholder="Reps">
+<input type="number" id="weight" placeholder="Weight (kg)">
+<button onclick="addWorkout()">Add</button>
+
+</div>
+
+<div class="card">
+<h3>🔎 Search Workout</h3>
+<input type="text" id="search" placeholder="Search exercise..." onkeyup="display()">
+</div>
+
+<div class="card">
+
+<h3>Workout History</h3>
+
+<table id="table"></table>
+
+<p><b>Total Calories Burned:</b> <span id="totalCal"></span></p>
+
+<button class="secondary" onclick="downloadCSV()">Download Report</button>
+
+</div>
+
+<div class="card">
+
+<h3>Progress Chart</h3>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+</div>
+</div>
+
+<script>
+
+let isLogin=true
+let users=JSON.parse(localStorage.getItem("users"))||{}
+let currentUser=localStorage.getItem("currentUser")
+let workouts=[]
+let chart
+
+let quotes=[
+"Push yourself because no one else will",
+"No pain no gain",
+"Success starts with self discipline",
+"Train insane or remain the same",
+"Your body can stand almost anything"
+]
+
+document.getElementById("quote").innerText=
+quotes[Math.floor(Math.random()*quotes.length)]
+
+if(currentUser){
+showDashboard()
+}
+
+function toggleForm(){
+isLogin=!isLogin
+authError.innerText=""
+formTitle.innerText=isLogin?"🏋 Smart Workout Tracker":"Register"
+document.querySelector("#authPage button").innerText=isLogin?"Login":"Register"
+}
+
+function handleAuth(){
+
+let username=authUsername.value.trim()
+let password=authPassword.value.trim()
+
+if(!username||!password){
+authError.innerText="Fill fields"
+return
+}
+
+if(isLogin){
+
+if(users[username] && users[username].password===password){
+localStorage.setItem("currentUser",username)
+showDashboard()
+}else{
+authError.innerText="Invalid login"
+}
+
+}else{
+
+if(users[username]){
+authError.innerText="Username exists"
+return
+}
+
+users[username]={password:password,workouts:[]}
+localStorage.setItem("users",JSON.stringify(users))
+alert("Registered successfully")
+toggleForm()
+
+}
+
+}
+
+function showDashboard(){
+
+currentUser=localStorage.getItem("currentUser")
+
+authPage.style.display="none"
+dashboard.style.display="block"
+
+document.getElementById("currentUser").innerText=currentUser
+
+workouts=users[currentUser].workouts
+
+display()
+
+}
+
+function logout(){
+localStorage.removeItem("currentUser")
+location.reload()
+}
+
+function addWorkout(){
+
+let workout={
+date:date.value,
+exercise:exercise.value,
+reps:+reps.value,
+weight:+weight.value
+}
+
+if(!workout.date||!workout.reps||!workout.weight){
+alert("Fill all fields")
+return
+}
+
+workouts.push(workout)
+
+users[currentUser].workouts=workouts
+
+localStorage.setItem("users",JSON.stringify(users))
+
+display()
+
+}
+
+function deleteWorkout(i){
+
+workouts.splice(i,1)
+
+users[currentUser].workouts=workouts
+
+localStorage.setItem("users",JSON.stringify(users))
+
+display()
+
+}
+
+function display(){
+
+let table=document.getElementById("table")
+
+let search=document.getElementById("search").value.toLowerCase()
+
+table.innerHTML=`
+<tr>
+<th>Date</th>
+<th>Exercise</th>
+<th>Reps</th>
+<th>Weight</th>
+<th>Calories</th>
+<th>Action</th>
+</tr>
+`
+
+let total=0
+
+workouts.forEach((w,i)=>{
+
+if(w.exercise.toLowerCase().includes(search)){
+
+let cal=Math.round(w.reps*w.weight*0.1)
+
+total+=cal
+
+table.innerHTML+=`
+<tr>
+<td>${w.date}</td>
+<td>${w.exercise}</td>
+<td>${w.reps}</td>
+<td>${w.weight}</td>
+<td>${cal}</td>
+<td>
+<button class="danger" onclick="deleteWorkout(${i})">Delete</button>
+</td>
+</tr>
+`
+}
+
+})
+
+document.getElementById("totalCal").innerText=total
+
+updateChart()
+
+}
+
+function updateChart(){
+
+let labels=workouts.map(w=>w.date)
+let data=workouts.map(w=>w.weight)
+
+if(chart) chart.destroy()
+
+chart=new Chart(document.getElementById("chart"),{
+
+type:"line",
+
+data:{
+labels:labels,
+datasets:[{
+label:"Weight Progress",
+data:data,
+borderColor:"#27ae60",
+tension:0.3
+}]
+}
+
+})
+
+}
+
+function toggleDark(){
+document.body.classList.toggle("dark")
+}
+
+function calcBMI(){
+
+let h=height.value/100
+let w=bmiweight.value
+
+let bmi=(w/(h*h)).toFixed(2)
+
+bmiResult.innerText="Your BMI : "+bmi
+
+}
+
+function saveGoal(){
+
+let g=goal.value
+
+localStorage.setItem("goal",g)
+
+goalStatus.innerText="Goal saved : "+g+" reps"
+
+}
+
+function downloadCSV(){
+
+let csv="Date,Exercise,Reps,Weight\n"
+
+workouts.forEach(w=>{
+csv+=`${w.date},${w.exercise},${w.reps},${w.weight}\n`
+})
+
+let blob=new Blob([csv])
+
+let a=document.createElement("a")
+
+a.href=URL.createObjectURL(blob)
+
+a.download="workout_report.csv"
+
+a.click()
+
+}
+
+</script>
+
+</body>
+</html>
+```
